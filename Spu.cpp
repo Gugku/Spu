@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <string.h>
-//#include <sys/stat.h>
 
 #include "EnumColors.h"
 #include "Stack.h"
@@ -13,21 +12,22 @@
 
 int main ()
     {
-    ///struct spu* Spu_struct = Ctor_Spu_Struct();
     struct spu Spu_struct;
     Ctor_Spu_Struct ( &Spu_struct );
-    //fprintf ( stderr, "CTOR OK\n" );
     if ( Read_Spu_Code ( &Spu_struct ) == FAILURE )
         {
         fprintf ( stderr, "READ SPU CODE BAD\n" );
         return 1;
         }
-    //fprintf ( stderr, "READ SPU CODE OK\n" );
+
+    for ( size_t i = 0; i < Spu_struct.size_code; i++)
+        {
+        printf ("Ip code: %lld Element: %lld\n", i, Spu_struct.code[i] );
+        }
+    printf ( "\n" );
+
     Spu_Run ( &Spu_struct );
-    //fprintf ( stderr, "SPU RUN OK\n" );
     Dtor_Spu_Struct ( &Spu_struct );
-     //fprintf ( stderr, "SPU DTOR OK\n" );
-    
     return 0;
     }
 
@@ -51,43 +51,19 @@ int Read_Spu_Code ( struct spu* Spu_struct )
     {
     FILE* CodeFOpen = fopen ( "CodeForSpu.bin", "r" );   /////////rb
 
-    //fprintf ( stderr, "FILE* CodeFOpen OK\n" );
-
     if (  CodeFOpen == NULL )
         {
         perror ( RED( "ERROR open file\n" ) );
         return FAILURE;
         }
 
-    //fprintf ( stderr, "CodeFOpen == NULL OK\n" );
-
-    /*struct stat data = {};
-    assert( stat("CodeForSpu.bin", &data) != -1);
-    char *buf = (char *) calloc (data.st_size + 1, sizeof(char));
-    assert(buf);*/
-
-    /*fprintf ( stderr, "Size code %llu\n", &Spu_struct->size_code );
-    fprintf(stderr, "begin fread");
-    size_t a = fread ( &Spu_struct->size_code, sizeof(size_t), 1, CodeFOpen );
-    size_t a = fread(buf, sizeof(char), data.st_size, CodeFOpen);
-    fprintf ( stderr,  "Size code %llu\n", &Spu_struct->size_code );
-    fprintf ( stderr, "a %lu\n", a );
-    if ( a != 8 )
-        {
-        perror ( RED( "ERROR fread size_code" ) );
-        return FAILURE;
-        }*/
     if ( fread ( &Spu_struct->size_code, sizeof(size_t), 1, CodeFOpen ) != 1 )
         {
         perror ( RED( "ERROR fread size_code" ) );
         return FAILURE;
         }
 
-    //fprintf ( stderr, "Fread size code OK\n" );
-
     Spu_struct->code = (stack_type*) calloc ( Spu_struct->size_code, sizeof(stack_type) );  
-
-    //fprintf ( stderr, "Calloc for code OK\n" );
 
     if ( Spu_struct->code == NULL )
         {
@@ -95,23 +71,17 @@ int Read_Spu_Code ( struct spu* Spu_struct )
         return FAILURE;
         }
 
-    //fprintf ( stderr, "Spu_struct->code == NULL OK\n" );
-
     if ( fread ( Spu_struct->code, sizeof(stack_type), Spu_struct->size_code, CodeFOpen ) != Spu_struct->size_code )
         {
         perror ( RED( "ERROR fread code" ) );
         return FAILURE;
         }
 
-    //fprintf ( stderr, "1 OK\n" );
-
     if ( fclose ( CodeFOpen ) != 0 )
         {
         perror ( RED( "ERROR close file\n" ) );
         return FAILURE;
         }  
-
-    //fprintf ( stderr, "2 OK\n" );
 
     return SUCCESSUFUL;
     }
@@ -124,7 +94,10 @@ int Spu_Run ( struct spu* Spu_struct )
     Spu_struct->hlt = false;
     while( Spu_struct->hlt == false )
         {
-        Spu_Switch ( Spu_struct );
+        if ( Spu_Switch ( Spu_struct ) == FAILURE )
+            {
+            return FAILURE;
+            }
         }
         return SUCCESSUFUL;
     }
@@ -135,59 +108,73 @@ int Spu_Run ( struct spu* Spu_struct )
 
 int Spu_Switch ( struct spu* Spu_struct )
     {
-    //printf("%d %d\n", Spu_struct->ip, Spu_struct->code[Spu_struct->ip]);
+    //printf("Ip: %lld Code[ip]: %lld\n", Spu_struct->ip, Spu_struct->code[Spu_struct->ip]);
     switch ( Spu_struct->code [ Spu_struct->ip ] )
             {
-            case CMD_PUSH:  { 
-                            Cmd_Push_Func ( Spu_struct ); 
+            case CMD_PUSH_: { 
+                            Cmd_Push__Func ( Spu_struct ); 
                             break; 
                             }
-            case CMD_ADD_:  {
-                            Cmd_Add__Func ( Spu_struct );
+            case CMD_PUSHR: { 
+                            Cmd_Pushr_Func ( Spu_struct ); 
+                            break; 
+                            }
+            case CMD_POP__: { 
+                            Cmd_Pop___Func ( Spu_struct ); 
+                            break; 
+                            }
+            case CMD_ADD__: {
+                            Cmd_Add___Func ( Spu_struct );
                             break;
                             }
-            case CMD_SUB_:  {                                                                                    //// Sub last num in stack
-                            Cmd_Sub__Func ( Spu_struct );
+            case CMD_SUB__: {                                                                                   //// Sub last num in stack
+                            Cmd_Sub___Func ( Spu_struct );
                             break;
                             }
-            case CMD_MUL_:  {
-                            Cmd_Mul__Func ( Spu_struct );
+            case CMD_MUL__: {
+                            Cmd_Mul___Func ( Spu_struct );
                             break;
                             }
-            case CMD_DIV_:  {                                                                                   //// Div on last num in stack
-                            Cmd_Div__Func ( Spu_struct );
+            case CMD_DIV__: {                                                                                   //// Div on last num in stack
+                            Cmd_Div___Func ( Spu_struct );
                             break;
                             }
-            case CMD_IN__:  {
-                            Cmd_In___Func ( Spu_struct );
+            case CMD_IN___: {
+                            Cmd_In____Func ( Spu_struct );
                             break;
                             }
-            case CMD_OUT_:  {
-                            Cmd_Out__Func ( Spu_struct );
+            case CMD_OUT__: {
+                            Cmd_Out___Func ( Spu_struct );
                             break;
                             }
-            case CMD_SQRT:  {
-                            Cmd_Sqrt_Func ( Spu_struct );
+            case CMD_SQRT_: {
+                            Cmd_Sqrt__Func ( Spu_struct );
                             break;
                             }
-            case CMD_SIN_:  {                                                                                   //// Sin %lld
-                            Cmd_Sin__Func ( Spu_struct );
+            case CMD_SIN__: {                                                                                   //// Sin %lld
+                            Cmd_Sin___Func ( Spu_struct );
                             break;
                             }
-            case CMD_COS_:  {                                                                                   //// Cos %lld
-                            Cmd_Cos__Func ( Spu_struct );
+            case CMD_COS__: {                                                                                   //// Cos %lld
+                            Cmd_Cos___Func ( Spu_struct );
                             break;
                             }
-            case CMD_DUMP:  
-                            Cmd_Dump_Func ( Spu_struct );
+            case CMD_DUMP_: {
+                            Cmd_Dump__Func ( Spu_struct );
                             break;
-            case CMD_HLT_:  {
+                            }
+            case CMD_HLT__: {
                             Spu_struct->hlt = true;
                             return SUCCESSUFUL;
                             break;
                             }
             default:        {
-                            printf ( RED( "ERORR: not a command\n" ) );
+                            fprintf ( stderr, RED( "ERORR: not a command\n" ) );
+                            fprintf ( stderr, "Ip code: %lld Element: %lld\n", Spu_struct->ip-2, Spu_struct->code[Spu_struct->ip-2] );
+                            fprintf ( stderr, "Ip code: %lld Element: %lld\n", Spu_struct->ip-1, Spu_struct->code[Spu_struct->ip-1] );
+                            fprintf ( stderr, RED( "Ip code: %d Element: %d\n" ), Spu_struct->ip, Spu_struct->code[Spu_struct->ip] );
+                            fprintf ( stderr, "Ip code: %lld Element: %lld\n", Spu_struct->ip+1, Spu_struct->code[Spu_struct->ip+1] );
+                            fprintf ( stderr, "Ip code: %lld Element: %lld\n", Spu_struct->ip+2, Spu_struct->code[Spu_struct->ip+2] );
                             return FAILURE;
                             break;
                             }
@@ -195,14 +182,28 @@ int Spu_Switch ( struct spu* Spu_struct )
     return SUCCESSUFUL;
     }
 
-void Cmd_Push_Func ( struct spu* Spu_struct )
+void Cmd_Push__Func ( struct spu* Spu_struct )
     {
     Stack_Push ( &Spu_struct->Spu_stack, Spu_struct->code [ Spu_struct->ip + 1 ] * 1000 );
     Spu_struct->ip += 2;
     return;    
     }
 
-void Cmd_Add__Func ( struct spu* Spu_struct )
+void Cmd_Pushr_Func ( struct spu* Spu_struct )
+    {
+    Spu_struct->spu_registers[Spu_struct->code[Spu_struct->ip+1]] = Stack_Pop ( &Spu_struct->Spu_stack );
+    Spu_struct->ip += 2;
+    return;    
+    }
+
+void Cmd_Pop___Func ( struct spu* Spu_struct )
+    {
+    Stack_Push ( &Spu_struct->Spu_stack, Spu_struct->spu_registers[Spu_struct->code[Spu_struct->ip+1]] );   ////Spu_struct->spu_registers[Spu_struct->ip+1]
+    Spu_struct->ip += 2;
+    return;    
+    }
+
+void Cmd_Add___Func ( struct spu* Spu_struct )
     {
     Spu_struct->Only_spu_registers.ax = Stack_Pop ( &Spu_struct->Spu_stack ) / 1000;
     Spu_struct->Only_spu_registers.bx = Stack_Pop ( &Spu_struct->Spu_stack ) / 1000;
@@ -211,7 +212,7 @@ void Cmd_Add__Func ( struct spu* Spu_struct )
     return;
     }
 
-void Cmd_Sub__Func ( struct spu* Spu_struct )
+void Cmd_Sub___Func ( struct spu* Spu_struct )
     {
     Spu_struct->Only_spu_registers.cx = Stack_Pop ( &Spu_struct->Spu_stack ) / 1000;
     Spu_struct->Only_spu_registers.dx = Stack_Pop ( &Spu_struct->Spu_stack ) / 1000;
@@ -220,7 +221,7 @@ void Cmd_Sub__Func ( struct spu* Spu_struct )
     return;       
     }
 
-void Cmd_Mul__Func ( struct spu* Spu_struct )
+void Cmd_Mul___Func ( struct spu* Spu_struct )
     {
     Spu_struct->Only_spu_registers.ex = Stack_Pop ( &Spu_struct->Spu_stack ) / 1000;
     Spu_struct->Only_spu_registers.fx = Stack_Pop ( &Spu_struct->Spu_stack ) / 1000;
@@ -229,7 +230,7 @@ void Cmd_Mul__Func ( struct spu* Spu_struct )
     return;
     }
 
-void Cmd_Div__Func ( struct spu* Spu_struct )
+void Cmd_Div___Func ( struct spu* Spu_struct )
     {
     Spu_struct->Only_spu_registers.gx = Stack_Pop ( &Spu_struct->Spu_stack ) / 1000;
     Spu_struct->Only_spu_registers.hx = Stack_Pop ( &Spu_struct->Spu_stack ) / 1000;
@@ -238,24 +239,24 @@ void Cmd_Div__Func ( struct spu* Spu_struct )
     return;
     }
 
-void Cmd_In___Func ( struct spu* Spu_struct )
+void Cmd_In____Func ( struct spu* Spu_struct )
     {
-    stack_type scan_param;
-    scanf  ( "%lld\n", &scan_param );
+    stack_type scan_param = 0;
+    scanf  ( "%lld", &scan_param );
     scan_param *= 1000;
     Stack_Push ( &Spu_struct->Spu_stack, scan_param );
     Spu_struct->ip ++;
     return;
     }
 
-void Cmd_Out__Func ( struct spu* Spu_struct )
+void Cmd_Out___Func ( struct spu* Spu_struct )
     {
     printf ( "%lld\n", Stack_Pop ( &Spu_struct->Spu_stack ) / 1000 );
     Spu_struct->ip ++;
     return;
     }
 
-void Cmd_Sqrt_Func ( struct spu* Spu_struct )
+void Cmd_Sqrt__Func ( struct spu* Spu_struct )
     {
     stack_type sqrt_result = (stack_type) sqrt ( Stack_Pop ( &Spu_struct->Spu_stack ) * 1000 );
     Stack_Push ( &Spu_struct->Spu_stack, sqrt_result );
@@ -263,7 +264,7 @@ void Cmd_Sqrt_Func ( struct spu* Spu_struct )
     return;
     }
 
-void Cmd_Sin__Func ( struct spu* Spu_struct )
+void Cmd_Sin___Func ( struct spu* Spu_struct )
     {
     stack_type sin_result = (stack_type) sin ( Stack_Pop ( &Spu_struct->Spu_stack ) * 1000 );
     Stack_Push ( &Spu_struct->Spu_stack, sin_result );
@@ -271,7 +272,7 @@ void Cmd_Sin__Func ( struct spu* Spu_struct )
     return;
     }
 
-void Cmd_Cos__Func ( struct spu* Spu_struct )
+void Cmd_Cos___Func ( struct spu* Spu_struct )
     {
     stack_type cos_result = (stack_type) cos ( Stack_Pop ( &Spu_struct->Spu_stack ) *1000 );
     Stack_Push ( &Spu_struct->Spu_stack, cos_result );
@@ -279,7 +280,7 @@ void Cmd_Cos__Func ( struct spu* Spu_struct )
     return;
     }
 
-void Cmd_Dump_Func ( struct spu* Spu_struct )
+void Cmd_Dump__Func ( struct spu* Spu_struct )
     {
     /* code */
     return;

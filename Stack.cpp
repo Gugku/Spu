@@ -243,4 +243,4 @@ int Verification_Stack ( struct stack *StackStruct, int line, const char* namefi
 
     /*----------------------------------------------------------------------------------------------------*/
 
-#undef Def_Verification_Stack//( StructAdress )
+#undef Def_Verification_Stack

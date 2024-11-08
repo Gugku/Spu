@@ -1,0 +1,7 @@
+push 1
+push 2
+add
+push ax
+pop ax
+out 
+hlt
